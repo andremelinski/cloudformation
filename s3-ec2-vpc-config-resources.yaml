@@ -1,0 +1,28 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Descripiton: This is my first bucet using s3
+
+Resources:
+  S3Bucket: #logical ID
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: bucketusingcloudformation
+
+  LogicalIDEC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0427090fd1714168b
+      InstanceType: t2.micro
+
+  LogicalIDVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: True
+      EnableDnsSupport: True
+      # InstanceTenancy: "String"
+      # Ipv4IpamPoolId: "String"
+      # Ipv4NetmaskLength: "Number"
+      Tags: 
+        - Key: Project
+          Value: Banking
