@@ -1,0 +1,127 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: This is the first cloudformation template to create S3 bucket, Lambda and APi Gatewat connect to it
+
+Resources:
+  # RahulS3bucket:
+  #   Type: AWS::S3::Bucket
+  #   Properties: 
+  #     BucketName: asdlfklajlslja
+  
+  LambdaExceutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Description: "IAM Role for lambda access S3 bucket"
+      # AWS Console -> IAM -> policies -> Copy arn
+      ManagedPolicyArns: 
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+      RoleName: "LambdaExecutionRole"
+      Tags: 
+        - Key: serverless
+          Value: lambda
+
+  LambdaFunction:
+    DependsOn: 
+      - LambdaExceutionRole
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.9
+      # returns a value for a specified attribute of this type.
+      Role: !GetAtt LambdaExceutionRole.Arn
+      Handler: index.handler
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          client = boto3.client('s3')
+
+          def handler(event, context):
+              response = client.get_object(
+                  Bucket='asdlfklajlslja',
+                  Key='Section 6_Bucket1_Json.json',
+          )
+            #convert from streaming data to byte
+              data_byte = response['Body'].read()
+            # convert from bytes to strings
+              data_string = data_byte.decode("UTF-8")
+            # convert from json string to dictionary
+              data_dict = json.loads(data_string)
+
+              return {
+                  'statusCode': 200,
+              #    'body': data_dict
+                  'body': json.dumps(data_dict),
+                  'headers': {'Content-Type': 'application/json'},
+              }
+      Description: Invoke aws lambda
+      TracingConfig:
+        Mode: Active
+      Timeout: 30
+
+  BankRestAPI:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: balanceapi
+
+  ResourceApiGateway:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      ParentId: !GetAtt BankRestAPI.RootResourceId
+      PathPart: balanceStatus
+      RestApiId: !Ref BankRestAPI
+  
+  ApiGatewayMethod:
+    Type: 'AWS::ApiGateway::Method'
+    Properties:
+      RestApiId: !Ref BankRestAPI
+      ResourceId: !Ref ResourceApiGateway
+      HttpMethod: GET
+      AuthorizationType: NONE
+      MethodResponses:
+        - StatusCode: 200
+          # ResponseParameters:
+          #   "method.response.header.Access-Control-Allow-Origin": True
+          #   "method.response.header.Access-Control-Allow-Headers": True
+          #   "method.response.header.Access-Control-Allow-Methods": True
+      Integration:
+        # Type: MOCK
+        Type: AWS
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - StatusCode: 200
+            # ResponseParameters:
+            #   "method.response.header.Access-Control-Allow-Origin": "'*'"
+            #   "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,idtoken'"
+            #   "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET,POST,PUT,DELETE'"
+            # ResponseTemplates:
+            #   application/json: ""
+            # RequestTemplates:
+            #   application/json: "{\"statusCode\": 200}"
+        Uri: !Sub 'arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/${LambdaFunction.Arn}/invocations'
+
+  ApiDeployment:
+    DependsOn: 
+      - ApiGatewayMethod
+    Type: 'AWS::ApiGateway::Deployment'
+    Properties:
+      RestApiId: !Ref BankRestAPI
+      Description: "API Gateway Deployment"
+      StageName: Prod
+
+# given api gateway permission to use this function 
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref LambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceAccount: 467159351154

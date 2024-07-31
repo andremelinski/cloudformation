@@ -1,0 +1,102 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Descripiton: Using resources parameters and interfaces
+
+Metadata: 
+  AWS::CloudFormation::Interface: 
+    ParameterGroups: 
+      - 
+        Label: 
+          default: "VPC Configuration"
+        Parameters: 
+          - VPCCIDR
+          - SubnetCIDR
+      - 
+        Label: 
+          default: "EC2 Configuration"
+        Parameters: 
+          - EC2AMIID
+          - InstanceTypeParameter
+      - 
+        Label: 
+          default: "Storage Configuration"
+        Parameters: 
+          - S3BucketnameP
+
+
+# CIDR -> ip range. /16 -> defines how many ips you will get: https://cidr.xyz/
+Parameters:
+  VPCCIDR:
+    Type: String
+    Default: 10.0.0.0/16
+    AllowedValues:
+      - 10.0.0.0/16 
+      - 10.0.0.0/24
+    Description: Enter the CIDR block for VPC
+  
+  SubnetCIDR:
+    Type: String
+    Default: 10.0.0.0/24
+    AllowedValues:
+      - 10.0.0.0/24
+      - 10.0.0.0/32
+    Description: Enter the CIDR block for Subnet
+  
+  EC2AMIID:
+    Type: String
+    Default: ami-0427090fd1714168b
+    AllowedValues:
+      - ami-0427090fd1714168b # amz linux
+      - ami-07d9456e59793a7d5 # windows
+    Description: Enter ami id. Amazon linux or windows
+  
+  InstanceTypeParameter:
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - m1.small
+      - m1.large
+    Description: Enter t2.micro, m1.small, or m1.large. Default is t2.micro.
+
+  S3Bucketname:
+   Type: String
+
+
+Resources:
+  LogicalIDVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VPCCIDR
+      EnableDnsHostnames: Boolean
+      EnableDnsSupport: Boolean
+      Tags: 
+        - Key: Project
+          Value: Banking
+  
+  BankingSubNet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Ref SubnetCIDR
+      Tags: 
+        - Key: Project
+          Value: Banking
+      VpcId: !Ref LogicalIDVPC # Required
+  
+  LogicalIDEC2:
+    Type: AWS::EC2::Instance
+    Properties: 
+      ImageId: !Ref EC2AMIID
+      InstanceType: !Ref InstanceTypeParameter
+      SubnetId: !Ref BankingSubNet
+      Tags: 
+        - Key: Project
+          Value: Banking
+  
+  LogicalIDS3Bucket: #logical ID
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Ref S3Bucketname
+    Tags: 
+      - Key: Project
+        Value: Banking
